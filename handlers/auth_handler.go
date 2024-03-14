@@ -59,6 +59,23 @@ func (a *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 	a.attachTokensToCookie(w, data.AccessToken, data.RefreshToken)
 	utils.SendJSON(w, data.User, http.StatusOK)
 }
+
+//func (a *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
+//	refreshToken, err := r.Cookie("refreshToken")
+//	if err != nil {
+//		utils.UnauthorizedError(w, errors.New("unauthorized"))
+//		return
+//	}
+//
+//	if data, err := a.AuthProcessor.RefreshTokens(refreshToken.Value); err != nil {
+//		utils.UnauthorizedError(w, err)
+//		return
+//	} else {
+//		fmt.Println(data)
+//	}
+//
+//}
+
 func (a *AuthHandler) attachTokensToCookie(w http.ResponseWriter, accessToken, refreshToken string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "accessToken",

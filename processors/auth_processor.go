@@ -13,6 +13,7 @@ import (
 type AuthProcessor interface {
 	SignUp(data types.CreateUser) error
 	SignIn(email, password string) (*types.SignInResponse, error)
+	RefreshTokens(refreshToken string) (*types.SignInResponse, error)
 }
 
 type AuthPgProcessor struct {
@@ -84,6 +85,10 @@ func (a *AuthPgProcessor) SignIn(email, password string) (*types.SignInResponse,
 				"id":      user.ID,
 				"expires": time.Now().Add(time.Hour * 24 * 30),
 			})
+
+			if err := a.TokenStorage.Create(user.ID, refreshToken); err != nil {
+				return nil, err
+			}
 		}
 
 		if tokenError != nil {
@@ -95,5 +100,43 @@ func (a *AuthPgProcessor) SignIn(email, password string) (*types.SignInResponse,
 		res.User = user
 
 		return &res, nil
+	}
+}
+
+func (a *AuthPgProcessor) RefreshTokens(refreshToken string) (*types.SignInResponse, error) {
+
+	token, err := utils.ParseJWT(refreshToken)
+	if err != nil {
+		return nil, err
+	}
+
+	if user, err := a.UserStorage.Get(int(token["id"].(float64))); err != nil {
+		return nil, err
+	} else {
+		if user.ID == 0 {
+			return nil, err
+		}
+
+		dbToken, err := a.TokenStorage.Get(user.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		if dbToken.RefreshToken != refreshToken {
+			return nil, err
+		}
+
+		if accessToken, err := utils.SignJWT(jwt.MapClaims{
+			"id":      user.ID,
+			"expires": time.Now().Add(time.Minute * 30),
+		}); err != nil {
+			return nil, err
+		} else {
+			return &types.SignInResponse{
+				User:         user,
+				AccessToken:  accessToken,
+				RefreshToken: dbToken.RefreshToken,
+			}, nil
+		}
 	}
 }

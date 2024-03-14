@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"og-style/db"
 	"og-style/handlers"
+	"og-style/middlewares"
 	"og-style/processors"
 	"os"
 	"time"
@@ -48,6 +49,12 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/auth/sign-up", authHandler.SignUp)
 	mux.HandleFunc("POST /api/v1/auth/sign-in", authHandler.SignIn)
+
+	mux.HandleFunc("/", middlewares.Auth(func(w http.ResponseWriter, r *http.Request) {
+
+		w.Write([]byte("Ok"))
+
+	}, &userStorage))
 
 	server := http.Server{
 		Addr:         ":4000",

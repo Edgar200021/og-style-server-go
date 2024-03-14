@@ -14,6 +14,8 @@ type UserStorage interface {
 	Get(id int) (*models.User, error)
 	GetByEmail(email string) (*models.User, error)
 	Create(data *types.CreateUser) (int, error)
+	//Update(data *types.UpdateUser) error
+	UpdatePassword(userId int, password string) error
 }
 
 type UserPgStorage struct {
@@ -42,7 +44,6 @@ func (u *UserPgStorage) GetByEmail(email string) (*models.User, error) {
 
 	return &user, nil
 }
-
 func (u *UserPgStorage) Create(data *types.CreateUser) (int, error) {
 	var userId int
 
@@ -52,3 +53,20 @@ func (u *UserPgStorage) Create(data *types.CreateUser) (int, error) {
 
 	return userId, nil
 }
+func (u *UserPgStorage) UpdatePassword(userId int, password string) error {
+
+	if _, err := u.DB.Query(context.Background(), "UPDATE users SET password = $1 WHERE id = $2", password, userId); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+//func (u *UserPgStorage) Update(data *types.UpdateUser) error {
+//
+//	if _,err := u.DB.Query(context.Background(), `UPDATE users Set email = COALESCE($1, email), password = COALESCE($2, password), name = COALESCE($3, name), avatar = COALESCE($4, avatar)`, data.Email,data.Password,data.Name,data.Email); err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}

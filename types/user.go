@@ -19,14 +19,37 @@ func (cu *CreateUser) Validate() *[][2]string {
 
 	errors := [][2]string{}
 	for _, err := range err.(validator.ValidationErrors) {
-		str := cu.generateErrMessage(err.Field(), err.Tag(), err.Param())
+		str := generateErrMessage(err.Field(), err.Tag(), err.Param())
 		errors = append(errors, [2]string{err.Field(), str})
 
 	}
 	return &errors
 }
 
-func (cu *CreateUser) generateErrMessage(field, tag, param string) string {
+type UpdateUser struct {
+	Email    string `json:"email" validate:"email"`
+	Password string `json:"password" validate:"gte=8"`
+	Name     string `json:"name"`
+	Avatar   string `json:"avatar"`
+}
+
+func (cu *UpdateUser) Validate() *[][2]string {
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	err := validate.Struct(cu)
+	if err == nil {
+		return nil
+	}
+
+	errors := [][2]string{}
+	for _, err := range err.(validator.ValidationErrors) {
+		str := generateErrMessage(err.Field(), err.Tag(), err.Param())
+		errors = append(errors, [2]string{err.Field(), str})
+
+	}
+	return &errors
+}
+
+func generateErrMessage(field, tag, param string) string {
 	switch tag {
 	case "email":
 		return "Invalid email"

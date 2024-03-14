@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"og-style/models"
 	"og-style/processors"
 	"og-style/types"
 	"og-style/utils"
 	"os"
 	"time"
+	"unicode/utf8"
 )
 
 type AuthHandler struct {
@@ -59,22 +61,48 @@ func (a *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 	a.attachTokensToCookie(w, data.AccessToken, data.RefreshToken)
 	utils.SendJSON(w, data.User, http.StatusOK)
 }
+func (a *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
+	refreshToken, err := r.Cookie("refreshToken")
+	if err != nil {
+		utils.UnauthorizedError(w, errors.New("unauthorized"))
+		return
+	}
 
-//func (a *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
-//	refreshToken, err := r.Cookie("refreshToken")
-//	if err != nil {
-//		utils.UnauthorizedError(w, errors.New("unauthorized"))
-//		return
-//	}
-//
-//	if data, err := a.AuthProcessor.RefreshTokens(refreshToken.Value); err != nil {
-//		utils.UnauthorizedError(w, err)
-//		return
-//	} else {
-//		fmt.Println(data)
-//	}
-//
-//}
+	if data, err := a.AuthProcessor.RefreshTokens(refreshToken.Value); err != nil {
+		utils.ForbiddenError(w, err)
+		return
+	} else {
+		a.attachTokensToCookie(w, data.AccessToken, data.RefreshToken)
+		utils.SendJSON(w, data.User, http.StatusOK)
+	}
+
+}
+func (a *AuthHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value("user").(*models.User)
+	body := make(map[string]string, 1)
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.BadRequestError(w, err)
+		return
+	}
+
+	if body["password"] == "" || body["oldPassword"] == "" {
+		utils.BadRequestError(w, errors.New("all fields are required"))
+		return
+	}
+
+	if utf8.RuneCountInString(body["password"]) < 8 {
+		utils.BadRequestError(w, errors.New("password must be more or equal 8 characters"))
+		return
+	}
+
+	if err := a.AuthProcessor.UpdatePassword(user.ID, body["oldPassword"], body["password"]); err != nil {
+		utils.BadRequestError(w, err)
+		return
+	}
+
+	utils.SendJSON(w, "success", http.StatusOK)
+}
 
 func (a *AuthHandler) attachTokensToCookie(w http.ResponseWriter, accessToken, refreshToken string) {
 	http.SetCookie(w, &http.Cookie{

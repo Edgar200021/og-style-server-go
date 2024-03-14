@@ -102,7 +102,6 @@ func (a *AuthPgProcessor) SignIn(email, password string) (*types.SignInResponse,
 		return &res, nil
 	}
 }
-
 func (a *AuthPgProcessor) RefreshTokens(refreshToken string) (*types.SignInResponse, error) {
 
 	token, err := utils.ParseJWT(refreshToken)
@@ -139,4 +138,29 @@ func (a *AuthPgProcessor) RefreshTokens(refreshToken string) (*types.SignInRespo
 			}, nil
 		}
 	}
+}
+func (a *AuthPgProcessor) UpdatePassword(userId int, oldPassword, password string) error {
+
+	user, err := a.UserStorage.Get(userId)
+	if err != nil {
+		return err
+	}
+
+	if user.ID == 0 {
+		return fmt.Errorf("user with id %d doesn't exists", userId)
+	}
+
+	if ok := utils.CheckPasswordHash(oldPassword, user.Password); !ok {
+		return errors.New("invalid password")
+	}
+
+	if hashedPassword, err := utils.HashPassword(password); err != nil {
+		return err
+	} else {
+		if err := a.UserStorage.UpdatePassword(userId, hashedPassword); err != nil {
+			return err
+		}
+		return nil
+	}
+
 }

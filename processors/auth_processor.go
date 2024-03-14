@@ -1,9 +1,11 @@
 package processors
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
+	"html/template"
 	"og-style/db"
 	"og-style/types"
 	"og-style/utils"
@@ -159,6 +161,99 @@ func (a *AuthPgProcessor) UpdatePassword(userId int, oldPassword, password strin
 	} else {
 		if err := a.UserStorage.UpdatePassword(userId, hashedPassword); err != nil {
 			return err
+		}
+		return nil
+	}
+
+}
+func (a *AuthPgProcessor) ForgotPassword(email string) error {
+	emailCh := make(chan error)
+	updateUserCh := make(chan error)
+
+	user, err := a.UserStorage.GetByEmail(email)
+	if err != nil {
+		return err
+	}
+
+	if user.ID == 0 {
+		return fmt.Errorf("user with email %s doesn't exists", email)
+	}
+
+	templateParser, tempErr := template.ParseFiles("./templates/forgot-password.html")
+	if tempErr != nil {
+		return tempErr
+	}
+
+	buff := &bytes.Buffer{}
+	if err := templateParser.Execute(buff, struct{ Email, Token string }{
+		Email: email,
+	}); err != nil {
+		return err
+	}
+
+	go func() {
+		if err := utils.SendEmail(buff.String(), "Reset password", email); err != nil {
+			emailCh <- err
+			return
+		}
+		emailCh <- nil
+	}()
+
+	go func() {
+		if err := a.UserStorage.UpdatePasswordExpires(user.ID, time.Now().Add(time.Minute*15)); err != nil {
+			updateUserCh <- err
+			return
+		}
+		updateUserCh <- nil
+	}()
+
+	if emailErr, updateUserErr := <-emailCh, <-updateUserCh; emailErr != nil || updateUserErr != nil {
+		fmt.Println(emailErr)
+		fmt.Println(updateUserErr)
+		return errors.New("something went wrong")
+	}
+	return nil
+}
+func (a *AuthPgProcessor) ResetPassword(email, password string) error {
+	deleteExpiresCh := make(chan error)
+	updatePasswordCh := make(chan error)
+
+	user, err := a.UserStorage.GetByEmail(email)
+	if err != nil {
+		return err
+	}
+
+	if user.ID == 0 {
+		return errors.New("incorrect password or email")
+	}
+
+	fmt.Println(user)
+	if time.Now().After(user.PasswordResetExpires.Add(time.Second * 0)) {
+		return errors.New("password recovery time expired")
+	}
+
+	if hashedPassword, err := utils.HashPassword(password); err != nil {
+		return err
+	} else {
+		go func() {
+			if err := a.UserStorage.UpdatePassword(user.ID, hashedPassword); err != nil {
+				updatePasswordCh <- err
+				return
+			}
+			updatePasswordCh <- nil
+		}()
+		go func() {
+			if err := a.UserStorage.DeletePasswordResetExpires(user.ID); err != nil {
+				deleteExpiresCh <- err
+				return
+			}
+			deleteExpiresCh <- nil
+		}()
+
+		if deleteErr, updateErr := <-deleteExpiresCh, <-updatePasswordCh; deleteErr != nil || updateErr != nil {
+			fmt.Println(deleteErr)
+			fmt.Println(updateErr)
+			return errors.New("something went wrong")
 		}
 		return nil
 	}

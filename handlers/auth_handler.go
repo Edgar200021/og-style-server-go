@@ -103,7 +103,49 @@ func (a *AuthHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 
 	utils.SendJSON(w, "success", http.StatusOK)
 }
+func (a *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	body := make(map[string]string, 1)
 
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.BadRequestError(w, err)
+		return
+	}
+
+	if body["email"] == "" {
+		utils.BadRequestError(w, errors.New("provide email address"))
+		return
+	}
+
+	err := a.AuthProcessor.ForgotPassword(body["email"])
+	if err != nil {
+		utils.BadRequestError(w, err)
+		return
+	}
+
+	utils.SendJSON(w, "Check your email for reset password", http.StatusOK)
+
+}
+func (a *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	m := make(map[string]string, 1)
+
+	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		utils.BadRequestError(w, err)
+		return
+	}
+
+	if m["password"] == "" || utf8.RuneCountInString(m["password"]) < 8 {
+		utils.BadRequestError(w, errors.New("password must be more than 8 symbols"))
+		return
+	}
+
+	if err := a.AuthProcessor.ResetPassword(email, m["password"]); err != nil {
+		utils.BadRequestError(w, err)
+		return
+	}
+
+	utils.SendJSON(w, "success", http.StatusOK)
+}
 func (a *AuthHandler) attachTokensToCookie(w http.ResponseWriter, accessToken, refreshToken string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "accessToken",

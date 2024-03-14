@@ -50,6 +50,8 @@ func main() {
 	mux.HandleFunc("POST /api/v1/auth/sign-up", authHandler.SignUp)
 	mux.HandleFunc("POST /api/v1/auth/sign-in", authHandler.SignIn)
 	mux.HandleFunc("POST /api/v1/auth/refresh-tokens", authHandler.RefreshTokens)
+	mux.HandleFunc("POST /api/v1/auth/forgot-password", authHandler.ForgotPassword)
+	mux.HandleFunc("PATCH /api/v1/auth/reset-password", authHandler.ResetPassword)
 	mux.HandleFunc("PATCH /api/v1/auth/update-password", middlewares.Auth(authHandler.UpdatePassword, &userStorage))
 
 	server := http.Server{

@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"og-style/models"
 	"og-style/types"
+	"time"
 )
 
 type UserStorage interface {
@@ -16,6 +17,8 @@ type UserStorage interface {
 	Create(data *types.CreateUser) (int, error)
 	//Update(data *types.UpdateUser) error
 	UpdatePassword(userId int, password string) error
+	UpdatePasswordExpires(userId int, passwordResetExpires time.Time) error
+	DeletePasswordResetExpires(userId int) error
 }
 
 type UserPgStorage struct {
@@ -61,6 +64,13 @@ func (u *UserPgStorage) UpdatePassword(userId int, password string) error {
 
 	return nil
 }
+func (u *UserPgStorage) UpdatePasswordExpires(userId int, passwordResetExpires time.Time) error {
+	if _, err := u.DB.Query(context.Background(), `UPDATE users SET password_reset_expires = $1 WHERE id = $2`, passwordResetExpires, userId); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 //func (u *UserPgStorage) Update(data *types.UpdateUser) error {
 //
@@ -70,3 +80,12 @@ func (u *UserPgStorage) UpdatePassword(userId int, password string) error {
 //
 //	return nil
 //}
+
+func (u *UserPgStorage) DeletePasswordResetExpires(userId int) error {
+
+	if _, err := u.DB.Query(context.Background(), `UPDATE users SET password_reset_expires = null WHERE id = $1`, userId); err != nil {
+		return err
+	}
+
+	return nil
+}

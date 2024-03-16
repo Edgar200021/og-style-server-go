@@ -14,7 +14,7 @@ import (
 )
 
 type AuthHandler struct {
-	AuthProcessor processors.AuthPgProcessor
+	AuthProcessor processors.AuthProcessor
 }
 
 func (a *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +25,7 @@ func (a *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	errors := data.Validate()
+	errors := utils.ValidateStruct(data)
 	if errors != nil {
 		utils.SendValidatonErrors(w, errors)
 		return

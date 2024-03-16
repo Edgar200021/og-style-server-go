@@ -16,6 +16,9 @@ type AuthProcessor interface {
 	SignUp(data types.CreateUser) error
 	SignIn(email, password string) (*types.SignInResponse, error)
 	RefreshTokens(refreshToken string) (*types.SignInResponse, error)
+	UpdatePassword(userId int, oldPassword, password string) error
+	ForgotPassword(email string) error
+	ResetPassword(email, password string) error
 }
 
 type AuthPgProcessor struct {
@@ -31,12 +34,12 @@ func (a *AuthPgProcessor) SignUp(data types.CreateUser) error {
 	}
 
 	if user.ID != 0 {
-		return fmt.Errorf("user with email %s already exists", data.Email)
+		return fmt.Errorf("пользователь с эл.почтой %s уже существует", data.Email)
 	}
 
 	hashedPassword, hashErr := utils.HashPassword(data.Password)
 	if hashErr != nil {
-		return errors.New("something went wrong")
+		return errors.New("что-то пошло не так.Повторите попытку чуть позже")
 	}
 
 	data.Password = hashedPassword
@@ -60,17 +63,17 @@ func (a *AuthPgProcessor) SignIn(email, password string) (*types.SignInResponse,
 	}
 
 	if user.ID == 0 {
-		return nil, errors.New("incorrect password or email")
+		return nil, errors.New("неправильный пароль или эл.адрес")
 	}
 
 	if ok := utils.CheckPasswordHash(password, user.Password); !ok {
-		return nil, errors.New("incorrect password or email")
+		return nil, errors.New("неправильный пароль или эл.адрес")
 	}
 
 	var accessToken, refreshToken string
 
 	if dbToken, err := a.TokenStorage.Get(user.ID); err != nil {
-		return nil, errors.New("something went wrong")
+		return nil, errors.New("что-то пошло не так.Повторите попытку чуть позже")
 	} else {
 		var res types.SignInResponse
 		var tokenError error
@@ -176,7 +179,7 @@ func (a *AuthPgProcessor) ForgotPassword(email string) error {
 	}
 
 	if user.ID == 0 {
-		return fmt.Errorf("user with email %s doesn't exists", email)
+		return fmt.Errorf("пользователь с эл.почтой %s не существует", email)
 	}
 
 	templateParser, tempErr := template.ParseFiles("./templates/forgot-password.html")
@@ -210,7 +213,7 @@ func (a *AuthPgProcessor) ForgotPassword(email string) error {
 	if emailErr, updateUserErr := <-emailCh, <-updateUserCh; emailErr != nil || updateUserErr != nil {
 		fmt.Println(emailErr)
 		fmt.Println(updateUserErr)
-		return errors.New("something went wrong")
+		return errors.New("что-то пошло не так.Повторите попытку чуть позже")
 	}
 	return nil
 }
@@ -224,12 +227,12 @@ func (a *AuthPgProcessor) ResetPassword(email, password string) error {
 	}
 
 	if user.ID == 0 {
-		return errors.New("incorrect password or email")
+		return fmt.Errorf("пользователь с эл.почтой %s не существует", email)
 	}
 
 	fmt.Println(user)
 	if time.Now().After(user.PasswordResetExpires.Add(time.Second * 0)) {
-		return errors.New("password recovery time expired")
+		return errors.New("время восстановления пароля истек")
 	}
 
 	if hashedPassword, err := utils.HashPassword(password); err != nil {
@@ -253,7 +256,7 @@ func (a *AuthPgProcessor) ResetPassword(email, password string) error {
 		if deleteErr, updateErr := <-deleteExpiresCh, <-updatePasswordCh; deleteErr != nil || updateErr != nil {
 			fmt.Println(deleteErr)
 			fmt.Println(updateErr)
-			return errors.New("something went wrong")
+			return errors.New("что-то пошло не так.Повторите попытку чуть позже")
 		}
 		return nil
 	}

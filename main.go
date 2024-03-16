@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	cloudinary2 "github.com/cloudinary/cloudinary-go/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
@@ -11,6 +12,7 @@ import (
 	"og-style/handlers"
 	"og-style/middlewares"
 	"og-style/processors"
+	"og-style/services"
 	"os"
 	"time"
 )
@@ -26,9 +28,14 @@ func main() {
 	}
 	defer pool.Close()
 
+	cloudinary, cldErr := cloudinary2.NewFromURL(os.Getenv("CLOUDINARY_URL"))
+	if cldErr != nil {
+		log.Fatal("Error when trying to connect to cloudinary")
+	}
+
 	mux := http.NewServeMux()
 	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:5173/"},
+		AllowedOrigins: []string{"http://localhost:5173"},
 		AllowedMethods: []string{"GET", "POST", "DELETE", "PATCH", "PUT"},
 		//AllowedHeaders:             nil,
 		//ExposedHeaders:             nil,
@@ -38,13 +45,18 @@ func main() {
 	handler := c.Handler(mux)
 
 	var (
-		userStorage  = db.UserPgStorage{DB: pool}
-		cartStorage  = db.CartPgStorage{DB: pool}
-		tokenStorage = db.TokenPgStorage{DB: pool}
+		imgUploaderProcessor = services.CldImageUploaderService{Cloudinary: cloudinary}
 
-		authProcessor = processors.AuthPgProcessor{&userStorage, &cartStorage, &tokenStorage}
+		userStorage    = db.UserPgStorage{DB: pool}
+		cartStorage    = db.CartPgStorage{DB: pool}
+		tokenStorage   = db.TokenPgStorage{DB: pool}
+		productStorage = db.ProductPgStorage{DB: pool}
 
-		authHandler = handlers.AuthHandler{AuthProcessor: authProcessor}
+		authProcessor    = processors.AuthPgProcessor{&userStorage, &cartStorage, &tokenStorage}
+		productProcessor = processors.ProductPgProcessor{&productStorage, &imgUploaderProcessor}
+
+		authHandler    = handlers.AuthHandler{AuthProcessor: &authProcessor}
+		productHandler = handlers.ProductHandler{ProductProcessor: &productProcessor}
 	)
 
 	mux.HandleFunc("POST /api/v1/auth/sign-up", authHandler.SignUp)
@@ -54,11 +66,15 @@ func main() {
 	mux.HandleFunc("PATCH /api/v1/auth/reset-password", authHandler.ResetPassword)
 	mux.HandleFunc("PATCH /api/v1/auth/update-password", middlewares.Auth(authHandler.UpdatePassword, &userStorage))
 
+	mux.HandleFunc("/api/v1/products", productHandler.GetAll)
+	mux.HandleFunc("/api/v1/products/{id}", productHandler.Get)
+	mux.HandleFunc("POST /api/v1/products", productHandler.Create)
+
 	server := http.Server{
 		Addr:         ":4000",
 		Handler:      handler,
-		ReadTimeout:  time.Second * 2,
-		WriteTimeout: time.Second * 2,
+		ReadTimeout:  time.Second * 4,
+		WriteTimeout: time.Second * 4,
 		IdleTimeout:  time.Second * 120,
 	}
 

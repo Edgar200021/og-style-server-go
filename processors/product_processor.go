@@ -2,6 +2,7 @@ package processors
 
 import (
 	"fmt"
+	"mime/multipart"
 	"og-style/db"
 	"og-style/models"
 	"og-style/services"
@@ -14,6 +15,7 @@ type ProductProcessor interface {
 	Create(data *types.CreateProduct) error
 	Update(id int, data *types.UpdateProduct) error
 	Delete(id int) error
+	UploadImage(file multipart.File) (string, error)
 }
 
 type ProductPgProcessor struct {
@@ -44,12 +46,9 @@ func (p *ProductPgProcessor) GetAll(params types.GetProductsParams) ([]*models.P
 	return products, nil
 }
 func (p *ProductPgProcessor) Create(data *types.CreateProduct) error {
-
-	err := p.ProductStorage.Create(data)
-	if err != nil {
+	if err := p.ProductStorage.Create(data); err != nil {
 		return err
 	}
-
 	return nil
 }
 func (p *ProductPgProcessor) Update(id int, data *types.UpdateProduct) error {
@@ -86,4 +85,12 @@ func (p *ProductPgProcessor) Delete(id int) error {
 	}
 
 	return nil
+}
+
+func (p *ProductPgProcessor) UploadImage(file multipart.File) (string, error) {
+	if imgUrl, err := p.ImageUploader.Upload(file); err != nil {
+		return "", err
+	} else {
+		return imgUrl, nil
+	}
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"og-style/models"
 	"og-style/processors"
@@ -54,6 +55,7 @@ func (a *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 
 	data, err := a.AuthProcessor.SignIn(body["email"], body["password"])
 	if err != nil {
+		fmt.Println(err)
 		utils.SendError(w, err, http.StatusBadRequest)
 		return
 	}

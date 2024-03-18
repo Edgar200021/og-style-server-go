@@ -68,17 +68,18 @@ func main() {
 
 	mux.HandleFunc("/api/v1/products", productHandler.GetAll)
 	mux.HandleFunc("/api/v1/products/{id}", productHandler.Get)
+	mux.HandleFunc("GET /api/v1/products/filters", productHandler.GetFilters)
 	mux.HandleFunc("POST /api/v1/products", middlewares.Auth(middlewares.RestrictTo(productHandler.Create, "admin"), &userStorage))
 	mux.HandleFunc("PATCH /api/v1/products/{id}", middlewares.Auth(middlewares.RestrictTo(productHandler.Update, "admin"), &userStorage))
 	mux.HandleFunc("DELETE /api/v1/products/{id}", middlewares.Auth(middlewares.RestrictTo(productHandler.Delete, "admin"), &userStorage))
 	mux.HandleFunc("POST /api/v1/products/upload-image", middlewares.Auth(middlewares.RestrictTo(productHandler.UploadImage, "admin"), &userStorage))
 
 	server := http.Server{
-		Addr:         ":4000",
-		Handler:      handler,
-		ReadTimeout:  time.Second * 4,
-		WriteTimeout: time.Second * 4,
-		IdleTimeout:  time.Second * 120,
+		Addr:        ":4000",
+		Handler:     handler,
+		ReadTimeout: time.Second * 4,
+		//WriteTimeout: time.Second * 5,
+		IdleTimeout: time.Second * 120,
 	}
 
 	if err := server.ListenAndServe(); err != nil {

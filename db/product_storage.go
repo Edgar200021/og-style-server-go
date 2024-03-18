@@ -18,6 +18,7 @@ type ProductStorage interface {
 	Create(data *types.CreateProduct) error
 	Update(id int, data *types.UpdateProduct) error
 	Delete(id int) error
+	GetFilters(category string) (types.ProductFilters, error)
 }
 
 type ProductPgStorage struct {
@@ -157,4 +158,18 @@ func (p *ProductPgStorage) Delete(id int) error {
 		return err
 	}
 	return nil
+}
+func (p *ProductPgStorage) GetFilters(category string) (types.ProductFilters, error) {
+	var productFilters types.ProductFilters
+
+	if err := pgxscan.Get(context.Background(), p.DB, &productFilters, ` SELECT
+     	ARRAY(SELECT DISTINCT UNNEST(size) as s FROM product WHERE category = $1 ORDER BY s ASC) as size,
+        ARRAY(SELECT DISTINCT UNNEST(colors) FROM product  WHERE category = $1) as colors,
+        (SELECT COALESCE(MIN(price),0) FROM product  WHERE category = $1) as min_price,
+        (SELECT COALESCE(MAX(price),0) FROM product  WHERE category = $1) as max_price,
+		ARRAY(SELECT DISTINCT b.id FROM product p JOIN brands b ON p.brand = b.id  WHERE category = $1 ) as brands_id,ARRAY(SELECT DISTINCT b.name FROM product p JOIN brands b ON p.brand = b.id  WHERE category = $1) as brands_name;`, category); err != nil {
+		return productFilters, err
+	}
+
+	return productFilters, nil
 }

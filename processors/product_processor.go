@@ -16,6 +16,7 @@ type ProductProcessor interface {
 	Update(id int, data *types.UpdateProduct) error
 	Delete(id int) error
 	UploadImage(file multipart.File) (string, error)
+	GetFilters(category string) (types.ProductFilters, error)
 }
 
 type ProductPgProcessor struct {
@@ -92,5 +93,13 @@ func (p *ProductPgProcessor) UploadImage(file multipart.File) (string, error) {
 		return "", err
 	} else {
 		return imgUrl, nil
+	}
+}
+
+func (p *ProductPgProcessor) GetFilters(category string) (types.ProductFilters, error) {
+	if filters, err := p.ProductStorage.GetFilters(category); err != nil {
+		return filters, err
+	} else {
+		return filters, nil
 	}
 }

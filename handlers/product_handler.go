@@ -172,6 +172,22 @@ func (p *ProductHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 
 	utils.SendJSON(w, imgUrls, http.StatusOK)
 }
+func (p *ProductHandler) GetFilters(w http.ResponseWriter, r *http.Request) {
+	category := r.URL.Query().Get("category")
+
+	if category == "" || (category != "одежда" && category != "обувь") {
+		utils.BadRequestError(w, errors.New("категория должно быть один из вариантов одежда,обувь"))
+		return
+	}
+
+	if filters, err := p.ProductProcessor.GetFilters(category); err != nil {
+		fmt.Println(err)
+		utils.InternalServerError(w, errors.New("Что-то пошло не так.Повторите попытку чуть позже"))
+	} else {
+		utils.SendJSON(w, filters, http.StatusOK)
+	}
+
+}
 func (p *ProductHandler) transformUrlParams(params map[string][]string) (*map[string]any, error) {
 	m := make(map[string]any, len(params))
 

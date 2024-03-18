@@ -1,8 +1,8 @@
 package types
 
 type CreateProduct struct {
-	Name        string   `json:"name" validate:"required,lte=40"`
-	Description string   `json:"description" validate:"required,lte=400"`
+	Name        string   `json:"name" validate:"required,lte=60"`
+	Description string   `json:"description" validate:"required,lte=1000"`
 	Price       int      `json:"price" validate:"required,number,min=1000"`
 	Discount    int      `json:"discount,omitempty" validate:"omitempty,number,min=1,max=99"`
 	Images      []string `json:"images" validate:"required,len=4,dive"`
@@ -15,9 +15,9 @@ type CreateProduct struct {
 }
 
 type UpdateProduct struct {
-	Name        string   `json:"name" validate:"lte=40"`
-	Description string   `json:"description" validate:"lte=200"`
-	Price       int      `json:"price" validate:"numeric,min=0"`
+	Name        string   `json:"name" validate:"lte=60"`
+	Description string   `json:"description" validate:"lte=1000"`
+	Price       int      `json:"price" validate:"number,min=1000"`
 	Discount    int      `json:"discount,omitempty" validate:"omitempty,number,min=1,max=99"`
 	Images      []string `json:"images" validate:"dive,len=4"`
 	Size        []string `json:"size" validate:"dive"`
@@ -37,4 +37,13 @@ type GetProductsParams struct {
 	Page        int      `json:"page,omitempty" validate:"omitempty,min=1"`
 	Size        []string `json:"size,omitempty" validate:"omitempty,dive"`
 	Colors      []string `json:"colors,omitempty" validate:"omitempty,dive,hexcolor"`
+}
+
+type ProductFilters struct {
+	Size       []string `json:"size"`
+	Colors     []string `json:"colors"`
+	MinPrice   int      `json:"minPrice" db:"min_price"`
+	MaxPrice   int      `json:"maxPrice" db:"max_price"`
+	BrandsId   []int    `json:"brandsId" db:"brands_id"`
+	BrandsName []string `json:"brandsName" db:"brands_name"`
 }
